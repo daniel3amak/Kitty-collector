@@ -52,15 +52,16 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-  // Your Firebase config
+  // Your Firebase config with databaseURL added
   const firebaseConfig = {
     apiKey: "AIzaSyBz_FIBB3zzOeg5AQo7iZGCitjeDGu2T_w",
     authDomain: "kitty-collecter.firebaseapp.com",
+    databaseURL: "https://kitty-collecter-default-rtdb.firebaseio.com",
     projectId: "kitty-collecter",
     storageBucket: "kitty-collecter.firebasestorage.app",
     messagingSenderId: "174905032567",
     appId: "1:174905032567:web:6fbc0651a52753ef2aeb72",
-    measurementId: "G-ZXJQ2GZ8P3"
+    measurementId: "G-ZXJQ2G8P3"
   };
 
   firebase.initializeApp(firebaseConfig);
@@ -94,20 +95,17 @@
   let currentUser = null;
   let userData = null;
 
-  // Show login screen
   function showLogin() {
     loginDiv.style.display = 'block';
     gameDiv.style.display = 'none';
     loginMsg.textContent = '';
   }
 
-  // Show game screen
   function showGame() {
     loginDiv.style.display = 'none';
     gameDiv.style.display = 'block';
   }
 
-  // Render market cats for buying
   function renderMarket() {
     catsDiv.innerHTML = '';
     catTypes.forEach(cat => {
@@ -123,7 +121,6 @@
     });
   }
 
-  // Render user inventory cats
   function renderInventory() {
     inventoryDiv.innerHTML = '';
     if (!userData.cats) userData.cats = {};
@@ -148,7 +145,6 @@
     }
   }
 
-  // Buy a cat function
   window.buyCat = function(catId) {
     const cat = catTypes.find(c => c.id === catId);
     if (userData.balance >= cat.price) {
@@ -164,12 +160,11 @@
     }
   };
 
-  // Sell a cat function
   window.sellCat = function(catId) {
     if (userData.cats && userData.cats[catId] > 0) {
       const cat = catTypes.find(c => c.id === catId);
       userData.cats[catId]--;
-      userData.balance += Math.floor(cat.price * 0.7); // 70% price back
+      userData.balance += Math.floor(cat.price * 0.7);
       if (userData.cats[catId] === 0) delete userData.cats[catId];
       saveUserData();
       renderInventory();
@@ -178,17 +173,14 @@
     }
   };
 
-  // Update balance display
   function updateBalance() {
     displayNameSpan.textContent = `${currentUser.email} - $${userData.balance || 0}`;
   }
 
-  // Save user data to Firebase realtime DB
   function saveUserData() {
     db.ref('users/' + currentUser.uid).set(userData);
   }
 
-  // Load user data on login
   function loadUserData() {
     db.ref('users/' + currentUser.uid).once('value').then(snapshot => {
       userData = snapshot.val() || { balance: 500, cats: {} };
@@ -200,68 +192,13 @@
     });
   }
 
-  // Update and show leaderboard (top 5 by balance)
   function updateLeaderboard() {
     db.ref('users').orderByChild('balance').limitToLast(5).once('value', snapshot => {
       const users = [];
       snapshot.forEach(child => {
         users.push({ email: child.val().email || 'Anon', balance: child.val().balance || 0 });
       });
-      // Sort descending by balance
       users.sort((a,b) => b.balance - a.balance);
       leaderboardList.innerHTML = '';
       users.forEach(user => {
         const li = document.createElement('li');
-        li.textContent = `${user.email}: $${user.balance}`;
-        leaderboardList.appendChild(li);
-      });
-    });
-  }
-
-  // Listen for auth state changes
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      currentUser = user;
-      // Save email inside userData so leaderboard can show it
-      db.ref('users/' + user.uid).once('value').then(snapshot => {
-        let data = snapshot.val() || { balance: 500, cats: {} };
-        data.email = user.email;
-        db.ref('users/' + user.uid).set(data);
-      });
-      loadUserData();
-    } else {
-      currentUser = null;
-      userData = null;
-      showLogin();
-    }
-  });
-
-  btnLogin.onclick = () => {
-    const email = usernameInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !password) {
-      loginMsg.textContent = 'Enter email and password.';
-      return;
-    }
-    auth.signInWithEmailAndPassword(email, password)
-      .catch(error => loginMsg.textContent = error.message);
-  };
-
-  btnSignup.onclick = () => {
-    const email = usernameInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !password) {
-      loginMsg.textContent = 'Enter email and password.';
-      return;
-    }
-    auth.createUserWithEmailAndPassword(email, password)
-      .catch(error => loginMsg.textContent = error.message);
-  };
-
-  btnLogout.onclick = () => {
-    auth.signOut();
-  };
-</script>
-
-</body>
-</html>
