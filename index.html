@@ -1,23 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cat Trader Multiplayer</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #fafafa; margin:0; padding:20px; }
-    #app { max-width: 900px; margin: auto; padding: 20px; background: white; box-shadow: 0 0 10px #ccc;}
-    #login, #game { display: none; }
-    button { padding: 8px 15px; margin: 5px; cursor: pointer; }
-    #cats, #inventory { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
-    .cat { border: 1px solid #ccc; padding: 10px; width: 130px; text-align: center; border-radius: 8px; background: #fff;}
-    .cat img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
-    #leaderboard { margin-top: 20px; }
-    #leaderboard h3 { margin-bottom: 5px; }
-    #leaderboard ul { list-style:none; padding: 0; }
-    #leaderboard li { background: #eee; margin: 3px 0; padding: 6px; border-radius: 5px; }
-    #audioControl { position: fixed; top: 10px; right: 10px; background: #fff; padding: 8px 12px; border-radius: 6px; box-shadow: 0 0 5px #aaa; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cat Trader Multiplayer</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #fafafa; margin:0; padding:20px; }
+  #app { max-width: 900px; margin: auto; padding: 20px; background: white; box-shadow: 0 0 10px #ccc;}
+  #login, #game { display: none; }
+  button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+  #cats, #inventory { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+  .cat { border: 1px solid #ccc; padding: 10px; width: 130px; text-align: center; border-radius: 8px; background: #fff;}
+  .cat img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
+  #leaderboard { margin-top: 20px; }
+  #leaderboard h3 { margin-bottom: 5px; }
+  #leaderboard ul { list-style:none; padding: 0; }
+  #leaderboard li { background: #eee; margin: 3px 0; padding: 6px; border-radius: 5px; }
+</style>
 </head>
 <body>
 
@@ -34,195 +33,156 @@
 
   <div id="game">
     <p>Welcome, <span id="displayName"></span>! <button id="btnLogout">Logout</button></p>
+
     <h2>Market</h2>
     <div id="cats"></div>
+
     <h2>Your Inventory</h2>
     <div id="inventory"></div>
+
     <h2>Global Leaderboard</h2>
-    <div id="leaderboard"><ul id="leaderboardList"></ul></div>
+    <div id="leaderboard">
+      <ul id="leaderboardList"></ul>
+    </div>
   </div>
 </div>
 
-<div id="audioControl">
-  <button id="toggleMusic">Mute Music</button>
-</div>
-
-<!-- Firebase -->
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- Sounds -->
-<audio id="meowSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_47bda3247c.mp3"></audio>
-<audio id="coinSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_6432cf0ab3.mp3"></audio>
-<audio id="discoverSound" src="https://cdn.pixabay.com/audio/2022/03/07/audio_5c2f3a217d.mp3"></audio>
-<audio id="clickSound" src="https://cdn.pixabay.com/audio/2022/10/31/audio_e9ed9e15f1.mp3"></audio>
-<audio id="bgMusic" src="https://cdn.pixabay.com/audio/2023/04/21/audio_d122d6f736.mp3" loop autoplay></audio>
-
 <script>
+  // Your Firebase config (yours exactly)
   const firebaseConfig = {
-    apiKey: "AIzaSyBz_FIBB3zzOeg5AQo7iZ",
-    authDomain: "cat-trader.firebaseapp.com",
-    projectId: "cat-trader",
-    storageBucket: "cat-trader.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:catgame123"
+    apiKey: "AIzaSyBz_FIBB3zzOeg5AQo7iZGCitjeDGu2T_w",
+    authDomain: "kitty-collecter.firebaseapp.com",
+    projectId: "kitty-collecter",
+    storageBucket: "kitty-collecter.firebasestorage.app",
+    messagingSenderId: "174905032567",
+    appId: "1:174905032567:web:a10be664c447661d2aeb72",
+    measurementId: "G-WSM3G9KV5L"
   };
+
   firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
   const auth = firebase.auth();
+  const db = firebase.database();
 
-  const meowSound = document.getElementById("meowSound");
-  const coinSound = document.getElementById("coinSound");
-  const discoverSound = document.getElementById("discoverSound");
-  const clickSound = document.getElementById("clickSound");
-  const bgMusic = document.getElementById("bgMusic");
+  // Sounds
+  const soundBuy = new Audio('https://freesound.org/data/previews/250/250629_4486188-lq.mp3');  // Buy sound
+  const soundSell = new Audio('https://freesound.org/data/previews/269/269261_5121236-lq.mp3'); // Sell sound
+  const soundUnlock = new Audio('https://freesound.org/data/previews/331/331912_3248244-lq.mp3'); // Unlock sound
+  const bgMusic = new Audio('https://cdn.pixabay.com/download/audio/2022/03/19/audio_2209940c4b.mp3?filename=fun-game-114904.mp3');
+  bgMusic.loop = true;
+  bgMusic.volume = 0.1;
+  bgMusic.play().catch(() => {}); // Auto play might block on some browsers
 
-  document.querySelectorAll("button").forEach(btn => {
-    btn.addEventListener("click", () => clickSound.play());
-  });
+  const loginDiv = document.getElementById('login');
+  const gameDiv = document.getElementById('game');
+  const displayNameSpan = document.getElementById('displayName');
+  const loginMsg = document.getElementById('loginMsg');
 
-  document.getElementById("toggleMusic").onclick = () => {
-    bgMusic.muted = !bgMusic.muted;
-    document.getElementById("toggleMusic").innerText = bgMusic.muted ? "Unmute Music" : "Mute Music";
-  };
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnSignup = document.getElementById('btnSignup');
+  const btnLogout = document.getElementById('btnLogout');
 
-  const cats = [
-    { name: "Whiskers", price: 10, img: "https://placekitten.com/200/200" },
-    { name: "Fluffy", price: 15, img: "https://placekitten.com/201/200" },
-    { name: "Tiger", price: 20, img: "https://placekitten.com/200/201" },
+  const catsDiv = document.getElementById('cats');
+  const inventoryDiv = document.getElementById('inventory');
+  const leaderboardList = document.getElementById('leaderboardList');
+
+  // Cat list with prices and images
+  const catTypes = [
+    { id: 'cat1', name: 'Siamese', price: 100, img: 'https://cdn2.thecatapi.com/images/ai6.jpg' },
+    { id: 'cat2', name: 'Maine Coon', price: 200, img: 'https://cdn2.thecatapi.com/images/MTY3ODIyMQ.jpg' },
+    { id: 'cat3', name: 'Persian', price: 150, img: 'https://cdn2.thecatapi.com/images/-eJ2VXr3E.jpg' },
+    { id: 'cat4', name: 'Ragdoll', price: 180, img: 'https://cdn2.thecatapi.com/images/2v7.jpg' },
+    { id: 'cat5', name: 'Bengal', price: 250, img: 'https://cdn2.thecatapi.com/images/O3btzLlsO.jpg' }
   ];
 
   let currentUser = null;
+  let userData = null;
 
-  function updateLeaderboard() {
-    db.ref("users").orderByChild("coins").limitToLast(10).once("value", snap => {
-      const lb = [];
-      snap.forEach(child => {
-        const u = child.val();
-        lb.push({ name: u.name, coins: u.coins || 0 });
-      });
-      lb.reverse();
-      const html = lb.map(u => `<li>${u.name}: ${u.coins} coins</li>`).join("");
-      document.getElementById("leaderboardList").innerHTML = html;
-    });
+  // Show login screen
+  function showLogin() {
+    loginDiv.style.display = 'block';
+    gameDiv.style.display = 'none';
+    loginMsg.textContent = '';
   }
 
-  function renderCats() {
-    const catDiv = document.getElementById("cats");
-    catDiv.innerHTML = "";
-    cats.forEach(cat => {
-      const div = document.createElement("div");
-      div.className = "cat";
+  // Show game screen
+  function showGame() {
+    loginDiv.style.display = 'none';
+    gameDiv.style.display = 'block';
+  }
+
+  // Render market cats for buying
+  function renderMarket() {
+    catsDiv.innerHTML = '';
+    catTypes.forEach(cat => {
+      const div = document.createElement('div');
+      div.className = 'cat';
       div.innerHTML = `
-        <img src="${cat.img}" />
-        <p>${cat.name}</p>
-        <p>${cat.price} coins</p>
-        <button onclick="buyCat('${cat.name}')">Buy</button>`;
-      catDiv.appendChild(div);
+        <img src="${cat.img}" alt="${cat.name}" />
+        <h3>${cat.name}</h3>
+        <p>Price: $${cat.price}</p>
+        <button onclick="buyCat('${cat.id}')">Buy</button>
+      `;
+      catsDiv.appendChild(div);
     });
   }
 
-  function renderInventory(inv) {
-    const invDiv = document.getElementById("inventory");
-    invDiv.innerHTML = "";
-    for (const name in inv) {
-      const qty = inv[name];
-      const cat = cats.find(c => c.name === name);
-      const div = document.createElement("div");
-      div.className = "cat";
-      div.innerHTML = `
-        <img src="${cat?.img}" />
-        <p>${name} x${qty}</p>
-        <button onclick="sellCat('${name}')">Sell</button>`;
-      invDiv.appendChild(div);
-    }
-  }
+  // Render user inventory cats
+  function renderInventory() {
+    inventoryDiv.innerHTML = '';
+    if (!userData.cats) userData.cats = {};
+    const catIds = Object.keys(userData.cats);
 
-  window.buyCat = function(name) {
-    const uid = auth.currentUser.uid;
-    db.ref("users/" + uid).once("value", snap => {
-      const user = snap.val();
-      const cat = cats.find(c => c.name === name);
-      if (user.coins >= cat.price) {
-        const inv = user.inventory || {};
-        if (!inv[name]) {
-          discoverSound.play();
-        } else {
-          meowSound.play();
-        }
-        inv[name] = (inv[name] || 0) + 1;
-        db.ref("users/" + uid).update({
-          coins: user.coins - cat.price,
-          inventory: inv
-        });
-        renderInventory(inv);
-        updateLeaderboard();
-      }
-    });
-  };
-
-  window.sellCat = function(name) {
-    const uid = auth.currentUser.uid;
-    db.ref("users/" + uid).once("value", snap => {
-      const user = snap.val();
-      const inv = user.inventory || {};
-      if (inv[name] > 0) {
-        const cat = cats.find(c => c.name === name);
-        inv[name] -= 1;
-        if (inv[name] === 0) delete inv[name];
-        db.ref("users/" + uid).update({
-          coins: user.coins + cat.price,
-          inventory: inv
-        });
-        coinSound.play();
-        renderInventory(inv);
-        updateLeaderboard();
-      }
-    });
-  };
-
-  document.getElementById("btnLogin").onclick = () => {
-    const email = document.getElementById("username").value;
-    const pass = document.getElementById("password").value;
-    auth.signInWithEmailAndPassword(email, pass).catch(err => {
-      document.getElementById("loginMsg").innerText = err.message;
-    });
-  };
-
-  document.getElementById("btnSignup").onclick = () => {
-    const email = document.getElementById("username").value;
-    const pass = document.getElementById("password").value;
-    auth.createUserWithEmailAndPassword(email, pass).then(cred => {
-      db.ref("users/" + cred.user.uid).set({
-        name: email.split("@")[0],
-        coins: 100,
-        inventory: {}
-      });
-    }).catch(err => {
-      document.getElementById("loginMsg").innerText = err.message;
-    });
-  };
-
-  document.getElementById("btnLogout").onclick = () => auth.signOut();
-
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      currentUser = user;
-      db.ref("users/" + user.uid).once("value", snap => {
-        const data = snap.val();
-        document.getElementById("displayName").innerText = data.name;
-        document.getElementById("login").style.display = "none";
-        document.getElementById("game").style.display = "block";
-        renderCats();
-        renderInventory(data.inventory || {});
-        updateLeaderboard();
-      });
+    if (catIds.length === 0) {
+      inventoryDiv.innerHTML = '<p>You have no cats yet.</p>';
     } else {
-      document.getElementById("login").style.display = "block";
-      document.getElementById("game").style.display = "none";
+      catIds.forEach(catId => {
+        const cat = catTypes.find(c => c.id === catId);
+        const qty = userData.cats[catId];
+        const div = document.createElement('div');
+        div.className = 'cat';
+        div.innerHTML = `
+          <img src="${cat.img}" alt="${cat.name}" />
+          <h3>${cat.name}</h3>
+          <p>Quantity: ${qty}</p>
+          <button onclick="sellCat('${cat.id}')">Sell</button>
+        `;
+        inventoryDiv.appendChild(div);
+      });
     }
-  });
-</script>
-</body>
-</html>
+  }
+
+  // Buy a cat function
+  window.buyCat = function(catId) {
+    const cat = catTypes.find(c => c.id === catId);
+    if (userData.balance >= cat.price) {
+      userData.balance -= cat.price;
+      if (!userData.cats) userData.cats = {};
+      userData.cats[catId] = (userData.cats[catId] || 0) + 1;
+      saveUserData();
+      renderInventory();
+      updateBalance();
+      updateLeaderboard();
+      soundBuy.play();
+      soundUnlock.play();
+    } else {
+      alert('Not enough money!');
+    }
+  };
+
+  // Sell a cat function
+  window.sellCat = function(catId) {
+    if (userData.cats && userData.cats[catId] > 0) {
+      const cat = catTypes.find(c => c.id === catId);
+      userData.cats[catId]--;
+      userData.balance += Math.floor(cat.price * 0.7); // 70% price back
+      if (userData.cats[catId] === 0) delete userData.cats[catId];
+      saveUserData();
+      renderInventory();
+      updateBalance();
