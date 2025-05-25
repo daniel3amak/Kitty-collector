@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cat Trader Multiplayer</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #fafafa; margin:0; padding:20px; }
+  #app { max-width: 900px; margin: auto; padding: 20px; background: white; box-shadow: 0 0 10px #ccc;}
+  #login, #game { display: none; }
+  button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+  #cats, #inventory { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+  .cat { border: 1px solid #ccc; padding: 10px; width: 130px; text-align: center; border-radius: 8px; background: #fff;}
+  .cat img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
+  #leaderboard { margin-top: 20px; }
+  #leaderboard h3 { margin-bottom: 5px; }
+  #leaderboard ul { list-style:none; padding: 0; }
+  #leaderboard li { background: #eee; margin: 3px 0; padding: 6px; border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <h1>Cat Trader Multiplayer</h1>
+
+  <div id="login">
+    <input type="text" id="username" placeholder="Email" maxlength="50" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="btnLogin">Login</button>
+    <button id="btnSignup">Sign Up</button>
+    <p id="loginMsg" style="color:red;"></p>
+  </div>
+
+  <div id="game">
+    <p>Welcome, <span id="displayName"></span>! <button id="btnLogout">Logout</button></p>
+
+    <h2>Market</h2>
+    <div id="cats"></div>
+
+    <h2>Your Inventory</h2>
+    <div id="inventory"></div>
+
+    <h2>Global Leaderboard</h2>
+    <div id="leaderboard">
+      <ul id="leaderboardList"></ul>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+  // Your Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyBz_FIBB3zzOeg5AQo7iZGCitjeDGu2T_w",
+    authDomain: "kitty-collecter.firebaseapp.com",
+    projectId: "kitty-collecter",
+    storageBucket: "kitty-collecter.firebasestorage.app",
+    messagingSenderId: "174905032567",
+    appId: "1:174905032567:web:6fbc0651a52753ef2aeb72",
+    measurementId: "G-ZXJQ2GZ8P3"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  const loginDiv = document.getElementById('login');
+  const gameDiv = document.getElementById('game');
+  const displayNameSpan = document.getElementById('displayName');
+  const loginMsg = document.getElementById('loginMsg');
+
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnSignup = document.getElementById('btnSignup');
+  const btnLogout = document.getElementById('btnLogout');
+
+  const catsDiv = document.getElementById('cats');
+  const inventoryDiv = document.getElementById('inventory');
+  const leaderboardList = document.getElementById('leaderboardList');
+
+  // Cat list with prices and images
+  const catTypes = [
+    { id: 'cat1', name: 'Siamese', price: 100, img: 'https://cdn2.thecatapi.com/images/ai6.jpg' },
+    { id: 'cat2', name: 'Maine Coon', price: 200, img: 'https://cdn2.thecatapi.com/images/MTY3ODIyMQ.jpg' },
+    { id: 'cat3', name: 'Persian', price: 150, img: 'https://cdn2.thecatapi.com/images/-eJ2VXr3E.jpg' },
+    { id: 'cat4', name: 'Ragdoll', price: 180, img: 'https://cdn2.thecatapi.com/images/2v7.jpg' },
+    { id: 'cat5', name: 'Bengal', price: 250, img: 'https://cdn2.thecatapi.com/images/O3btzLlsO.jpg' }
+  ];
+
+  let currentUser = null;
+  let userData = null;
+
+  // Show login screen
+  function showLogin() {
+    loginDiv.style.display = 'block';
+    gameDiv.style.display = 'none';
+    loginMsg.textContent = '';
+  }
+
+  // Show game screen
+  function showGame() {
+    loginDiv.style.display = 'none';
+    gameDiv.style.display = 'block';
+  }
+
+  // Render market cats for buying
+  function renderMarket() {
+    catsDiv.innerHTML = '';
+    catTypes.forEach(cat => {
+      const div = document.createElement('div');
+      div.className = 'cat';
+      div.innerHTML = `
+        <img src="${cat.img}" alt="${cat.name}" />
+        <h3>${cat.name}</h3>
+        <p>Price: $${cat.price}</p>
+        <button onclick="buyCat('${cat.id}')">Buy</button>
+      `;
+      catsDiv.appendChild(div);
+    });
+  }
+
+  // Render user inventory cats
+  function renderInventory() {
+    inventoryDiv.innerHTML = '';
+    if (!userData.cats) userData.cats = {};
+    const catIds = Object.keys(userData.cats);
+
+    if (catIds.length === 0) {
+      inventoryDiv.innerHTML = '<p>You have no cats yet.</p>';
+    } else {
+      catIds.forEach(catId => {
+        const cat = catTypes.find(c => c.id === catId);
+        const qty = userData.cats[catId];
+        const div = document.createElement('div');
+        div.className = 'cat';
+        div.innerHTML = `
+          <img src="${cat.img}" alt="${cat.name}" />
+          <h3>${cat.name}</h3>
+          <p>Quantity: ${qty}</p>
+          <button onclick="sellCat('${cat.id}')">Sell</button>
+        `;
+        inventoryDiv.appendChild(div);
+      });
+    }
+  }
+
+  // Buy a cat function
+  window.buyCat = function(catId) {
+    const cat = catTypes.find(c => c.id === catId);
+    if (userData.balance >= cat.price) {
+      userData.balance -= cat.price;
+      if (!userData.cats) userData.cats = {};
+      userData.cats[catId] = (userData.cats[catId] || 0) + 1;
+      saveUserData();
+      renderInventory();
+      updateBalance();
+      updateLeaderboard();
+    } else {
+      alert('Not enough money!');
+    }
+  };
+
+  // Sell a cat function
+  window.sellCat = function(catId) {
+    if (userData.cats && userData.cats[catId] > 0) {
+      const cat = catTypes.find(c => c.id === catId);
+      userData.cats[catId]--;
+      userData.balance += Math.floor(cat.price * 0.7); // 70% price back
+      if (userData.cats[catId] === 0) delete userData.cats[catId];
+      saveUserData();
+      renderInventory();
+      updateBalance();
+      updateLeaderboard();
+    }
+  };
+
+  // Update balance display
+  function updateBalance() {
+    displayNameSpan.textContent = `${currentUser.email} - $${userData.balance || 0}`;
+  }
+
+  // Save user data to Firebase realtime DB
+  function saveUserData() {
+    db.ref('users/' + currentUser.uid).set(userData);
+  }
+
+  // Load user data on login
+  function loadUserData() {
+    db.ref('users/' + currentUser.uid).once('value').then(snapshot => {
+      userData = snapshot.val() || { balance: 500, cats: {} };
+      renderInventory();
+      renderMarket();
+      updateBalance();
+      showGame();
+      updateLeaderboard();
+    });
+  }
+
+  // Update and show leaderboard (top 5 by balance)
+  function updateLeaderboard() {
+    db.ref('users').orderByChild('balance').limitToLast(5).once('value', snapshot => {
+      const users = [];
+      snapshot.forEach(child => {
+        users.push({ email: child.val().email || 'Anon', balance: child.val().balance || 0 });
+      });
+      // Sort descending by balance
+      users.sort((a,b) => b.balance - a.balance);
+      leaderboardList.innerHTML = '';
+      users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = `${user.email}: $${user.balance}`;
+        leaderboardList.appendChild(li);
+      });
+    });
+  }
+
+  // Listen for auth state changes
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      // Save email inside userData so leaderboard can show it
+      db.ref('users/' + user.uid).once('value').then(snapshot => {
+        let data = snapshot.val() || { balance: 500, cats: {} };
+        data.email = user.email;
+        db.ref('users/' + user.uid).set(data);
+      });
+      loadUserData();
+    } else {
+      currentUser = null;
+      userData = null;
+      showLogin();
+    }
+  });
+
+  btnLogin.onclick = () => {
+    const email = usernameInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) {
+      loginMsg.textContent = 'Enter email and password.';
+      return;
+    }
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(error => loginMsg.textContent = error.message);
+  };
+
+  btnSignup.onclick = () => {
+    const email = usernameInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) {
+      loginMsg.textContent = 'Enter email and password.';
+      return;
+    }
+    auth.createUserWithEmailAndPassword(email, password)
+      .catch(error => loginMsg.textContent = error.message);
+  };
+
+  btnLogout.onclick = () => {
+    auth.signOut();
+  };
+</script>
+
+</body>
+</html>
